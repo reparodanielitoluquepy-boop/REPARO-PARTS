@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<!-- 
+  REPARO PARTS — Para PWA completa en GitHub Pages:
+  Crear archivo sw.js en el mismo repositorio con este contenido:
+  
+  const CACHE='reparo-v2';
+  self.addEventListener('install',e=>self.skipWaiting());
+  self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==CACHE).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
+  self.addEventListener('fetch',e=>{if(e.request.method!=='GET'||e.request.url.includes('firebaseio.com'))return;e.respondWith(caches.open(CACHE).then(c=>c.match(e.request).then(r=>r||fetch(e.request).then(res=>{if(res&&res.ok)c.put(e.request,res.clone());return res;}))));});
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#080f1e">
+<title>Reparo Parts</title>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#080f1e; --bg2:#0c1526; --card:#0f1d30; --card2:#122035;
+  --b1:rgba(96,165,250,.1); --b2:rgba(96,165,250,.18); --b3:rgba(96,165,250,.32);
+  --blue:#2563eb; --sky:#60a5fa; --teal:#0ea5e9;
+  --green:#10b981; --red:#ef4444; --orange:#f59e0b;
+  --white:#eef4ff; --gray:#5a7499; --gray2:#2d445e;
+  --r:13px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--white);font-family:'Outfit',sans-serif;overflow-x:hidden}
+button,input{font-family:inherit;border:none;outline:none;cursor:pointer}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-thumb{background:var(--gray2);border-radius:2px}
+
+/* ── VIEWS ─────────────────────────── */
+.v{display:none;flex-direction:column;min-height:100vh}
+.v.on{display:flex}
+
+/* ── LOGIN ─────────────────────────── */
+#vlogin{
+  align-items:center;justify-content:center;
+  background:var(--bg);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% 0%,rgba(37,99,235,.18),transparent),
+    radial-gradient(ellipse 50% 40% at 90% 90%,rgba(14,165,233,.1),transparent);
+}
+.lbox{
+  width:100%;max-width:360px;margin:20px;
+  background:var(--card);border:1.5px solid var(--b2);
+  border-radius:20px;padding:36px 32px;
+  box-shadow:0 12px 40px rgba(0,0,0,.5);
+}
+.llogo{display:flex;align-items:center;gap:12px;margin-bottom:26px}
+.licon{
+  width:46px;height:46px;border-radius:12px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--blue),var(--teal));
+  display:flex;align-items:center;justify-content:center;font-size:23px;
+  box-shadow:0 4px 16px rgba(37,99,235,.4);
+}
+.ltitle{font-size:20px;font-weight:800;letter-spacing:-.3px}
+.lsub{font-size:11px;color:var(--sky);font-weight:600;letter-spacing:.06em;margin-top:2px}
+.lfield{margin-bottom:13px}
+.lfield label{display:block;font-size:10.5px;font-weight:700;color:var(--sky);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em}
+.linp{
+  width:100%;padding:12px 14px;
+  background:rgba(8,15,30,.7);border:1.5px solid var(--b2);border-radius:10px;
+  color:var(--white);font-size:15px;transition:border-color .2s;
+}
+.linp:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.15)}
+.linp::placeholder{color:var(--gray2)}
+.lbtn{
+  width:100%;padding:13px;margin-top:4px;
+  background:linear-gradient(135deg,var(--blue),var(--teal));
+  border-radius:10px;color:#fff;font-size:15px;font-weight:700;
+  box-shadow:0 4px 16px rgba(37,99,235,.35);transition:opacity .2s,transform .1s;
+}
+.lbtn:hover{opacity:.9;transform:translateY(-1px)}
+.lbtn:disabled{opacity:.6;transform:none}
+.lerr{
+  margin-top:11px;padding:10px 13px;
+  background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);
+  border-radius:8px;font-size:13px;color:#f87171;display:none;
+}
+
+/* ── HEADER ─────────────────────────── */
+.hdr{
+  position:sticky;top:0;z-index:100;
+  background:rgba(8,15,30,.96);backdrop-filter:blur(24px);
+  border-bottom:1px solid var(--b1);
+}
+.hrow1{display:flex;align-items:center;gap:10px;padding:0 14px;height:54px}
+.hbrand{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.hbrand-icon{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--blue),var(--teal));display:flex;align-items:center;justify-content:center;font-size:15px}
+.hbrand-name{font-size:14px;font-weight:700;color:var(--white)}
+.hsearch{flex:1;position:relative}
+.sinp{
+  width:100%;padding:9px 13px 9px 35px;
+  background:rgba(12,21,38,.9);border:1.5px solid var(--b2);border-radius:10px;
+  color:var(--white);font-size:13.5px;transition:border-color .2s;
+}
+.sinp:focus{border-color:var(--blue);outline:none}
+.sinp::placeholder{color:var(--gray)}
+.sico{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none}
+.hbtns{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.hbtn{
+  display:flex;align-items:center;gap:4px;
+  padding:7px 11px;border-radius:9px;font-size:12px;font-weight:600;
+  background:rgba(12,21,38,.9);border:1.5px solid var(--b2);color:var(--sky);
+  transition:background .15s;position:relative;white-space:nowrap;
+}
+.hbtn:hover{background:rgba(37,99,235,.2)}
+.cartn{
+  position:absolute;top:-5px;right:-5px;
+  background:var(--orange);color:#000;border-radius:50%;
+  width:17px;height:17px;font-size:9px;font-weight:800;
+  display:none;align-items:center;justify-content:center;
+}
+.cartn.on{display:flex}
+.fbs{font-size:10px;padding:3px 8px;border-radius:5px;font-weight:600;flex-shrink:0}
+.fbs.ok{background:rgba(16,185,129,.13);color:#34d399}
+.fbs.er{background:rgba(239,68,68,.13);color:#f87171}
+.fbs.sy{background:rgba(96,165,250,.1);color:var(--sky)}
+
+/* FILTROS */
+
+
+/* ── CATALOG BODY ─────────────────────── */
+.cbody{flex:1;padding:14px 14px 110px;max-width:1300px;margin:0 auto;width:100%}
+.cmeta{font-size:12px;color:var(--gray);margin-bottom:12px;font-weight:500}
+.cmeta b{color:var(--white)}
+
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:11px}
+
+/* TARJETA DE PRODUCTO */
+.pcard{
+  background:var(--card);border:1.5px solid var(--b1);border-radius:var(--r);
+  display:flex;flex-direction:column;overflow:hidden;
+  transition:border-color .18s,box-shadow .18s,transform .15s;
+}
+.pcard:hover{border-color:var(--b3);box-shadow:0 6px 24px rgba(0,0,0,.4);transform:translateY(-2px)}
+.pcard.sinstock{opacity:.45}
+
+/* Franja de stock arriba de la tarjeta */
+.stockbar{height:3px;width:100%}
+.stockbar.ok{background:var(--green)}
+.stockbar.low{background:var(--orange)}
+.stockbar.out{background:var(--red)}
+
+.card-body{padding:12px;flex:1;display:flex;flex-direction:column;gap:7px}
+.card-tags{display:flex;gap:4px;flex-wrap:wrap}
+.tag{font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;letter-spacing:.03em}
+.td{background:rgba(96,165,250,.1);color:var(--sky);border:1px solid rgba(96,165,250,.18)}
+.tt{background:rgba(139,92,246,.1);color:#c4b5fd;border:1px solid rgba(139,92,246,.18)}
+.card-name{font-size:13px;font-weight:600;line-height:1.35;color:var(--white);flex:1}
+.card-price{font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:600;color:var(--sky)}
+.card-price small{font-size:10.5px;opacity:.6;margin-right:1px}
+.card-stock{font-size:11px;font-weight:600}
+.card-stock.ok{color:#34d399}
+.card-stock.low{color:#fcd34d}
+.card-stock.out{color:#f87171}
+.btn-add{
+  margin-top:2px;padding:9px;border-radius:9px;
+  font-size:12.5px;font-weight:700;
+  background:rgba(37,99,235,.18);border:1.5px solid rgba(37,99,235,.28);
+  color:var(--sky);transition:all .15s;
+}
+.btn-add:hover:not(:disabled){background:rgba(37,99,235,.38);border-color:var(--blue)}
+.btn-add:disabled{opacity:.3;cursor:not-allowed}
+.btn-add.added{background:rgba(16,185,129,.16);border-color:rgba(16,185,129,.32);color:#34d399}
+
+/* ESTADOS VACÍOS */
+.empty{grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--gray)}
+.empty .emo{font-size:44px;margin-bottom:14px;display:block}
+.empty b{display:block;color:var(--white);font-size:15px;margin-bottom:6px}
+.loading{grid-column:1/-1;display:flex;align-items:center;justify-content:center;gap:11px;padding:60px;color:var(--gray);font-size:13px}
+.spin{width:20px;height:20px;border:2px solid var(--b2);border-top-color:var(--blue);border-radius:50%;animation:sp .7s linear infinite;flex-shrink:0}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ── CART DRAWER ─────────────────────── */
+.cover{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:300;opacity:0;pointer-events:none;transition:opacity .3s}
+.cover.on{opacity:1;pointer-events:all}
+.drawer{
+  position:fixed;top:0;right:0;height:100%;width:340px;max-width:92vw;
+  background:var(--card);border-left:1.5px solid var(--b2);z-index:301;
+  display:flex;flex-direction:column;
+  transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);
+  box-shadow:-8px 0 40px rgba(0,0,0,.5);
+}
+.drawer.on{transform:translateX(0)}
+.drw-hdr{display:flex;align-items:center;justify-content:space-between;padding:15px 17px;border-bottom:1px solid var(--b1)}
+.drw-title{font-size:15px;font-weight:700}
+.drw-x{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:8px;padding:6px 10px;font-size:15px;color:#f87171;transition:background .15s}
+.drw-x:hover{background:rgba(239,68,68,.22)}
+.drw-items{flex:1;overflow-y:auto;padding:12px}
+.drw-empty{text-align:center;padding:40px 20px;color:var(--gray)}
+.drw-empty .emo{font-size:32px;display:block;margin-bottom:10px}
+
+.ci{display:flex;align-items:center;gap:10px;padding:10px;background:rgba(8,15,30,.5);border:1px solid var(--b1);border-radius:10px;margin-bottom:8px}
+.ci-info{flex:1;min-width:0}
+.ci-name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ci-price{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--sky);margin-top:2px}
+.ci-ctrl{display:flex;align-items:center;gap:5px;flex-shrink:0}
+.qb{width:25px;height:25px;border-radius:6px;background:rgba(37,99,235,.15);border:1px solid var(--b2);color:var(--sky);font-size:14px;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.qb:hover{background:rgba(37,99,235,.32)}
+.cqty{font-size:13px;font-weight:700;min-width:20px;text-align:center}
+.bri{width:25px;height:25px;border-radius:6px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:#f87171;font-size:11px;transition:background .15s}
+.bri:hover{background:rgba(239,68,68,.25)}
+
+.drw-foot{padding:14px 17px;border-top:1px solid var(--b1);background:rgba(8,15,30,.6)}
+.drw-tot-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.drw-tot-lbl{font-size:13px;color:var(--gray)}
+.drw-tot-val{font-family:'JetBrains Mono',monospace;font-size:21px;font-weight:700}
+.btn-wa{
+  width:100%;padding:13px;border-radius:10px;
+  background:linear-gradient(135deg,#075e54,#128c7e);color:#fff;
+  border:1px solid rgba(18,140,126,.4);font-size:14px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  margin-bottom:8px;transition:opacity .18s;
+}
+.btn-wa:hover{opacity:.9}
+.btn-clear{width:100%;padding:9px;border-radius:9px;font-size:12px;background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.18);color:#f87171;transition:background .15s}
+.btn-clear:hover{background:rgba(239,68,68,.18)}
+
+/* ── TOAST ─────────────────────────── */
+.tc{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:999;display:flex;flex-direction:column;gap:7px;align-items:center;pointer-events:none}
+.tst{background:rgba(12,21,38,.97);border:1.5px solid var(--b2);border-radius:10px;padding:10px 18px;font-size:13px;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.5);animation:tin .22s ease;white-space:nowrap}
+.tst.ok{border-color:rgba(16,185,129,.38);color:#34d399}
+.tst.er{border-color:rgba(239,68,68,.38);color:#f87171}
+@keyframes tin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* HIGHLIGHT búsqueda */
+.hl{background:rgba(96,165,250,.28);color:var(--white);border-radius:3px;padding:0 1px;font-weight:700}
+
+/* CAJA DE REFERENCIA */
+.refbox{
+  margin:0 14px 4px;padding:10px 14px;
+  background:rgba(37,99,235,.07);border:1px solid rgba(96,165,250,.18);
+  border-radius:10px;display:none;flex-wrap:wrap;gap:6px 14px;
+}
+.refbox.on{display:flex}
+.ref{font-size:11px;color:var(--sky);display:flex;align-items:center;gap:4px}
+.ref b{color:var(--white);font-weight:700}
+.ref span{color:var(--gray)}
+
+/* ── RESPONSIVE ─────────────────────── */
+@media(max-width:680px){
+  .pgrid{grid-template-columns:repeat(2,1fr);gap:9px}
+  .cbody{padding:12px 10px 110px}
+  .hbrand-name{display:none}
+}
+@media(max-width:360px){
+  .pgrid{grid-template-columns:1fr 1fr;gap:7px}
+  .card-price{font-size:15px}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="vlogin" class="v on">
+  <div class="lbox">
+    <div class="llogo">
+      <div class="licon">🔧</div>
+      <div>
+        <div class="ltitle">Reparo Parts</div>
+        <div class="lsub">CATÁLOGO TÉCNICO</div>
+      </div>
+    </div>
+    <div class="lfield">
+      <label>Usuario</label>
+      <input class="linp" id="lu" type="text" placeholder="usuario" autocomplete="username">
+    </div>
+    <div class="lfield">
+      <label>Contraseña</label>
+      <input class="linp" id="lp" type="password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="lbtn" id="lbtn">Ingresar →</button>
+    <div class="lerr" id="lerr"></div>
+  </div>
+</div>
+
+<!-- CATÁLOGO -->
+<div id="vcatalog" class="v">
+  <header class="hdr">
+    <div class="hrow1">
+      <div class="hbrand">
+        <div class="hbrand-icon">🔧</div>
+        <span class="hbrand-name">Reparo Parts</span>
+      </div>
+      <div class="hsearch" style="flex:1;max-width:600px">
+        <span class="sico">🔍</span>
+        <input class="sinp" id="sinp" type="text" placeholder="Buscar por nombre, modelo, tipo... (ej: pantalla iphone 13, bat samsung)" oninput="onSearch(this.value)" autocomplete="off">
+      </div>
+      <div class="hbtns">
+        <button class="hbtn" onclick="toggleCart()">
+          🛒 <span id="cartlbl">0</span>
+          <span class="cartn" id="cartn">0</span>
+        </button>
+        <button class="hbtn" onclick="logout()" title="Salir">🚪</button>
+        <span class="fbs sy" id="fbs">⟳</span>
+      </div>
+    </div>
+
+  </header>
+
+  <!-- Glosario de términos -->
+  <div class="refbox" id="refbox">
+    <div class="ref">🔊 <b>CAMPAINHA</b> <span>= Speaker / Parlante</span></div>
+    <div class="ref">🖥️ <b>MODUL</b> <span>= Display / Pantalla</span></div>
+    <div class="ref">🔌 <b>FLEX CARGA</b> <span>= Plaquita de carga / Puerto</span></div>
+    <div class="ref">🔙 <b>TAMPA</b> <span>= Tapa trasera</span></div>
+    <div class="ref">🔲 <b>ARO</b> <span>= Carcasa intermedia / Marco</span></div>
+    <div class="ref">📲 <b>GAVETA</b> <span>= Porta SIM</span></div>
+    <div class="ref">🔭 <b>VIDRO CÂMERA</b> <span>= Visor de cámara</span></div>
+    <div class="ref">🔋 <b>BAT</b> <span>= Batería</span></div>
+  </div>
+
+  <div class="cbody">
+    <div class="cmeta" id="cmeta"></div>
+    <div class="pgrid" id="pgrid">
+      <div class="loading"><div class="spin"></div> Conectando al inventario...</div>
+    </div>
+  </div>
+</div>
+
+<!-- CART DRAWER -->
+<div class="cover" id="cover" onclick="toggleCart()"></div>
+<div class="drawer" id="drawer">
+  <div class="drw-hdr">
+    <span class="drw-title">🛒 Mi pedido</span>
+    <button class="drw-x" onclick="toggleCart()">✕</button>
+  </div>
+  <div class="drw-items" id="drwitems">
+    <div class="drw-empty"><span class="emo">🛒</span>Carrito vacío</div>
+  </div>
+  <div class="drw-foot">
+    <div class="drw-tot-row">
+      <span class="drw-tot-lbl">Total estimado</span>
+      <span class="drw-tot-val" id="drwtot">₲ 0</span>
+    </div>
+    <button class="btn-wa" onclick="cotizarWA()">💬 Cotizar por WhatsApp</button>
+    <button class="btn-clear" onclick="clearCart()">🗑️ Vaciar carrito</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<!-- PWA Banner -->
+<div id="pwabanner" style="position:fixed;bottom:0;left:0;right:0;z-index:1000;background:rgba(9,18,36,.97);border-top:1.5px solid rgba(96,165,250,.2);padding:13px 16px 16px;display:none;align-items:center;gap:12px;backdrop-filter:blur(20px)">
+  <div style="width:42px;height:42px;border-radius:11px;background:linear-gradient(135deg,#2563eb,#0ea5e9);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🔧</div>
+  <div style="flex:1">
+    <div style="font-size:13px;font-weight:700">Instalar Reparo Parts</div>
+    <div class="pwa-sub" style="font-size:11px;color:#5a7499;margin-top:2px">Acceso rápido desde tu pantalla de inicio</div>
+  </div>
+  <div style="display:flex;gap:7px;flex-shrink:0">
+    <button id="pwabtn" style="padding:8px 14px;background:linear-gradient(135deg,#2563eb,#0ea5e9);border-radius:8px;color:#fff;font-size:12px;font-weight:700;border:none;cursor:pointer">📲 Instalar</button>
+    <button onclick="dismissPWA()" style="padding:8px 11px;background:transparent;border:1px solid rgba(96,165,250,.2);border-radius:8px;color:#5a7499;font-size:12px;cursor:pointer">✕</button>
+  </div>
+</div>
+
+<div class="tc" id="tc"></div>
+
+<script>
+'use strict';
+// ══════════════════════════════════════════
+// FIREBASE
+// ══════════════════════════════════════════
+const FB = {
+  apiKey:"AIzaSyAXq6RMgbw5_Y9WAWV6FS1TfpEeYKFLATA",
+  authDomain:"reparo-danielito-invento-ae773.firebaseapp.com",
+  databaseURL:"https://reparo-danielito-invento-ae773-default-rtdb.firebaseio.com",
+  projectId:"reparo-danielito-invento-ae773",
+  storageBucket:"reparo-danielito-invento-ae773.firebasestorage.app",
+  messagingSenderId:"472400921197",
+  appId:"1:472400921197:web:91d4eb6b7bc3c4ed32b564"
+};
+
+let db;
+try { firebase.initializeApp(FB); } catch(e) {}
+db = firebase.database();
+db.ref('.info/connected').on('value', s => {
+  const ok = !!s.val();
+  const el = g('fbs');
+  el.className = 'fbs ' + (ok ? 'ok' : 'er');
+  el.textContent = ok ? '🔥 Online' : '⚠️ Offline';
+});
+
+// ══════════════════════════════════════════
+// CONSTANTES
+// ══════════════════════════════════════════
+const TL = {pantalla:'Modul',bateria:'Bat',altavoz:'CAMPAINHA',camara:'Camera',tapa:'Tampa',flex:'Flex',puerto:'Flex Carga',gaveta:'Gaveta',aro:'Aro',vidro_camara:'Vidro Câmera'};
+const TE = {pantalla:'🖥️',bateria:'🔋',altavoz:'🔊',camara:'📷',tapa:'🔙',flex:'⚡',puerto:'🔌',gaveta:'📲',aro:'🔲',vidro_camara:'🔭'};
+const DL = {iphone:'iPhone',android:'Android',general:'General'};
+const DE = {iphone:'🍎',android:'🤖',general:'🔩'};
+
+// Grupos de sinónimos — cualquier palabra del grupo encuentra las demás
+const SYN = [
+  ['modulo','pantalla','display','modul','lcd','oled','amoled','tela','screen','module'],
+  ['bateria','bat','battery','pila','acumulador'],
+  ['altavoz','parlante','speaker','campainha','bocina','buzzer','earpiece','auricular'],
+  ['camara','camera','cam','lente','foto'],
+  ['tapa','tampa','back','trasera','cover'],
+  ['flex','ribbon'],
+  ['puerto','carga','usb','tipo c','lightning','dock','flex carga','charging'],
+  ['gaveta','sim','bandeja','porta sim','slot sim','tray'],
+  ['aro','marco','frame','borde','carcasa','chasis','bezel','housing','middle'],
+  ['vidro','visor','lente camara','vidrio camara','glass','lente trasero'],
+  ['iphone','ipone','ifone','aifon','aiphone'],
+  ['samsung','samsumg','sansung','samsun'],
+  ['xiaomi','xiaome','xiomi','shaomi','redmi'],
+  ['motorola','moto'],
+];
+
+// Filtros tipo para coincidencia por nombre
+const TIPO_KEYS = {
+  pantalla: ['modulo','pantalla','display','modul','lcd','oled','amoled','tela','screen'],
+  bateria:  ['bateria','bat','battery','pila'],
+  altavoz:  ['altavoz','parlante','speaker','campainha','bocina','buzzer','earpiece'],
+  camara:   ['camara','camera','cam','lente','foto'],
+  tapa:     ['tapa','tampa','back','trasera','cover'],
+  flex:     ['flex','ribbon'],
+  puerto:   ['puerto','carga','usb','tipo c','lightning','dock','flex carga'],
+  gaveta:   ['gaveta','sim','bandeja','porta sim','slot'],
+  aro:      ['aro','marco','frame','borde','carcasa','chasis','bezel'],
+  vidro_camara: ['vidro','visor','lente camara','vidrio camara','glass'],
+};
+
+// ══════════════════════════════════════════
+// ESTADO
+// ══════════════════════════════════════════
+let S = {
+  user: null,
+  inv: [],
+  vis: [],
+  cart: [],
+  fil: {q:''},
+  cfg: {wa:'', msg:'Hola! Quisiera cotizar:'},
+};
+
+// ══════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════
+const g = id => document.getElementById(id);
+
+function norm(s) {
+  return (s||'').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[áàä]/g,'a').replace(/[éèë]/g,'e')
+    .replace(/[íìï]/g,'i').replace(/[óòö]/g,'o')
+    .replace(/[úùü]/g,'u').replace(/ñ/g,'n');
+}
+
+function esc(s) {
+  return String(s||'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, cls) {
+  const el = document.createElement('div');
+  el.className = 'tst ' + (cls||'');
+  el.textContent = msg;
+  g('tc').appendChild(el);
+  setTimeout(() => el.remove(), 2600);
+}
+
+// ══════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════
+function boot() {
+  try {
+    const s = JSON.parse(localStorage.getItem('rp')||'null');
+    if (s && s.u) { S.user = s; startCatalog(); return; }
+  } catch(e) {}
+  g('vlogin').classList.add('on');
+}
+
+function doLogin() {
+  const u = g('lu').value.trim().toLowerCase();
+  const p = g('lp').value;
+  const errEl = g('lerr');
+  errEl.style.display = 'none';
+  if (!u || !p) { showErr('Ingresá usuario y contraseña.'); return; }
+  const btn = g('lbtn');
+  btn.textContent = '...'; btn.disabled = true;
+
+  db.ref('users').once('value').then(snap => {
+    let users = snap.val() || {};
+    if (!Object.keys(users).length) {
+      users = {
+        admin:   {password:'1234', role:'admin',   nombre:'Administrador'},
+        tecnico: {password:'1234', role:'tecnico', nombre:'Técnico'},
+      };
+      db.ref('users').set(users);
+    }
+    if (!users.tecnico) db.ref('users/tecnico').set({password:'1234',role:'tecnico',nombre:'Técnico'});
+    const found = users[u];
+    if (!found || found.password !== p) {
+      showErr('Usuario o contraseña incorrectos.');
+      btn.textContent = 'Ingresar →'; btn.disabled = false;
+      return;
+    }
+    S.user = {u, role: found.role, nombre: found.nombre||u};
+    localStorage.setItem('rp', JSON.stringify(S.user));
+    g('vlogin').classList.remove('on');
+    startCatalog();
+  }).catch(() => {
+    showErr('Error de conexión. Verificá tu internet.');
+    btn.textContent = 'Ingresar →'; btn.disabled = false;
+  });
+}
+
+function showErr(msg) {
+  const el = g('lerr');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+function logout() {
+  localStorage.removeItem('rp');
+  S = {...S, user:null, inv:[], vis:[], cart:[]};
+  db.ref('inventario').off();
+  g('vcatalog').classList.remove('on');
+  g('vlogin').classList.add('on');
+  g('lp').value = '';
+  const btn = g('lbtn');
+  btn.textContent = 'Ingresar →'; btn.disabled = false;
+}
+
+// ══════════════════════════════════════════
+// CATÁLOGO
+// ══════════════════════════════════════════
+function startCatalog() {
+  g('vcatalog').classList.add('on');
+  // Escuchar inventario en tiempo real
+  db.ref('inventario').on('value', snap => {
+    S.inv = snap.val() ? Object.values(snap.val()).filter(p => p && p.nombre) : [];
+    render();
+  });
+  // Config (WA)
+  db.ref('_config').once('value').then(snap => {
+    if (snap.val()) Object.assign(S.cfg, snap.val());
+  });
+}
+
+// ══════════════════════════════════════════
+// PILLS
+// ══════════════════════════════════════════
+
+
+
+
+function onSearch(v) {
+  S.fil.q = v;
+  // Mostrar glosario solo cuando hay texto
+  const rb = g('refbox');
+  if (rb) rb.classList.toggle('on', v.trim().length > 0);
+  render();
+}
+
+// ══════════════════════════════════════════
+// BÚSQUEDA — sinónimos bidireccionales
+// ══════════════════════════════════════════
+function getSynonyms(word) {
+  const set = new Set([word]);
+  SYN.forEach(group => {
+    const match = group.some(s => {
+      const ns = norm(s);
+      return ns === word || ns.startsWith(word) || word.startsWith(ns);
+    });
+    if (match) group.forEach(s => set.add(norm(s)));
+  });
+  return [...set];
+}
+
+function lev(a, b) {
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const d = Array.from({length:a.length+1}, (_,i) =>
+    Array.from({length:b.length+1}, (_,j) => i ? j ? 0 : i : j)
+  );
+  for (let i=1;i<=a.length;i++)
+    for (let j=1;j<=b.length;j++)
+      d[i][j] = a[i-1]===b[j-1] ? d[i-1][j-1] : 1+Math.min(d[i-1][j],d[i][j-1],d[i-1][j-1]);
+  return d[a.length][b.length];
+}
+
+function matchSearch(q, p) {
+  if (!q.trim()) return true;
+  const words = norm(q.trim()).split(/\s+/).filter(Boolean);
+  const expanded = words.map(w => getSynonyms(w));
+  const hay = norm([p.nombre, p.codigo, p.dispositivo, p.tipoRepuesto, TL[p.tipoRepuesto]||''].join(' '));
+  const hayW = hay.split(/\s+/);
+  // Cada palabra del query debe tener al menos un sinónimo en el texto del producto
+  if (expanded.every(syns => syns.some(s => hay.includes(s)))) return true;
+  // Levenshtein para typos
+  const nq = norm(q.trim());
+  if (nq.length >= 4 && hayW.some(w => w.length >= 3 && lev(w, nq) <= Math.max(1, Math.floor(nq.length/4)))) return true;
+  return false;
+}
+
+function matchTipo(p, tipo) {
+  if (!tipo) return true;
+  if ((p.tipoRepuesto||'') === tipo) return true;
+  const keys = TIPO_KEYS[tipo] || [];
+  const nom = norm(p.nombre||'');
+  return keys.some(k => nom.includes(norm(k)));
+}
+
+function getFiltered() {
+  let list = [...S.inv];
+  const q = S.fil.q;
+  if (q) list = list.filter(p => matchSearch(q, p));
+  return list.sort((a, b) => {
+    const ca = parseInt(a.cantidad)||0, cb = parseInt(b.cantidad)||0;
+    const sa = ca > 0 ? 0 : 1, sb = cb > 0 ? 0 : 1;
+    if (sa !== sb) return sa - sb;
+    return (a.nombre||'').localeCompare(b.nombre||'');
+  });
+}
+
+// ══════════════════════════════════════════
+// RENDER PRODUCTOS
+// ══════════════════════════════════════════
+function stInfo(p) {
+  const c = parseInt(p.cantidad)||0, m = parseInt(p.stockMinimo)||2;
+  if (c === 0) return {cls:'out', bar:'out', txt:'Sin stock'};
+  if (c <= m)  return {cls:'low', bar:'low', txt:c+' ud. (bajo)'};
+  return           {cls:'ok',  bar:'ok',  txt:c+' unidades'};
+}
+
+// Resaltar coincidencias en texto
+function highlight(text, q) {
+  if (!q || !q.trim()) return esc(text);
+  const safe = esc(text);
+  const words = norm(q.trim()).split(/\s+/).filter(Boolean);
+  let result = safe;
+  words.forEach(w => {
+    if (w.length < 2) return;
+    // Buscar en texto normalizado para encontrar posición
+    const normResult = norm(result.replace(/<[^>]+>/g, ''));
+    const normText   = norm(text);
+    const idx = normText.indexOf(w);
+    if (idx < 0) return;
+    // Resaltar en el texto original (no en el escapado para evitar romper HTML)
+    const orig = text.substring(idx, idx + w.length);
+    result = result.replace(esc(orig), '<span class="hl">' + esc(orig) + '</span>');
+  });
+  return result;
+}
+
+function render() {
+  S.vis = getFiltered();
+  const grid = g('pgrid'), meta = g('cmeta');
+  const n = S.vis.length;
+  const qActive = !!S.fil.q;
+  meta.innerHTML = '<b>' + n + '</b> producto' + (n!==1?'s':'') + (qActive?' encontrado'+(n!==1?'s':''):'');
+
+  if (!n) {
+    grid.innerHTML = '<div class="empty"><span class="emo">🔍</span><b>Sin resultados</b>Intentá con otra búsqueda o filtro</div>';
+    return;
+  }
+
+  grid.innerHTML = S.vis.map((p, idx) => {
+    const st     = stInfo(p);
+    const out    = (parseInt(p.cantidad)||0) === 0;
+    const inCart = S.cart.some(c => c.p === p);
+    const tipo   = TL[p.tipoRepuesto] || p.tipoRepuesto || '';
+    const emoji  = TE[p.tipoRepuesto] || '🔧';
+    const dEmoji = DE[p.dispositivo] || '📦';
+    const precio = (parseInt(p.precioTecnico)||0).toLocaleString('es-PY');
+
+    return '<div class="pcard' + (out?' sinstock':'') + '">' +
+      '<div class="stockbar ' + st.bar + '"></div>' +
+      '<div class="card-body">' +
+        '<div class="card-tags">' +
+          '<span class="tag td">' + dEmoji + ' ' + esc(DL[p.dispositivo]||'General') + '</span>' +
+          (tipo ? '<span class="tag tt">' + emoji + ' ' + esc(tipo) + '</span>' : '') +
+        '</div>' +
+        '<div class="card-name">' + highlight(p.nombre, S.fil.q) + '</div>' +
+        '<div class="card-price"><small>₲</small>' + precio + '</div>' +
+        '<div class="card-stock ' + st.cls + '">' + st.txt + '</div>' +
+        '<button class="btn-add' + (inCart?' added':'') + '"' + (out?' disabled':'') +
+          ' onclick="addToCart(' + idx + ')">' +
+          (out ? 'Sin stock' : inCart ? '✓ En carrito' : '+ Agregar al carrito') +
+        '</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// ══════════════════════════════════════════
+// CARRITO
+// ══════════════════════════════════════════
+function addToCart(idx) {
+  const p = S.vis[idx];
+  if (!p) return;
+  const cant = parseInt(p.cantidad)||0;
+  if (cant === 0) { toast('Sin stock disponible','er'); return; }
+  const ex = S.cart.find(c => c.p === p);
+  if (ex) {
+    if (ex.qty >= cant) { toast('Límite de stock','er'); return; }
+    ex.qty++;
+  } else {
+    S.cart.push({p, qty:1});
+  }
+  renderCart(); render();
+  toast('✅ Agregado: ' + p.nombre.substring(0,28), 'ok');
+}
+
+function updateQty(i, d) {
+  const it = S.cart[i]; if (!it) return;
+  it.qty += d;
+  if (it.qty <= 0) S.cart.splice(i,1);
+  else if (it.qty > (parseInt(it.p.cantidad)||0)) {
+    it.qty = parseInt(it.p.cantidad)||0;
+    toast('Límite de stock','er');
+  }
+  renderCart(); render();
+}
+
+function removeItem(i) { S.cart.splice(i,1); renderCart(); render(); }
+
+function clearCart() { S.cart=[]; renderCart(); render(); toast('🗑️ Carrito vaciado'); }
+
+function renderCart() {
+  const el=g('drwitems'), badge=g('cartn'), tot=g('drwtot'), lbl=g('cartlbl');
+  const tc = S.cart.reduce((s,c)=>s+c.qty, 0);
+  const tp = S.cart.reduce((s,c)=>s+(parseInt(c.p.precioTecnico)||0)*c.qty, 0);
+
+  badge.classList.toggle('on', tc > 0);
+  badge.textContent = tc;
+  lbl.textContent = tc;
+  tot.textContent = '₲ ' + tp.toLocaleString('es-PY');
+
+  if (!S.cart.length) {
+    el.innerHTML = '<div class="drw-empty"><span class="emo">🛒</span>Carrito vacío</div>';
+    return;
+  }
+
+  el.innerHTML = S.cart.map((c, i) => {
+    const emoji = TE[c.p.tipoRepuesto] || '🔧';
+    const sub   = (parseInt(c.p.precioTecnico)||0) * c.qty;
+    return '<div class="ci">' +
+      '<div style="font-size:22px;flex-shrink:0;width:32px;text-align:center">' + emoji + '</div>' +
+      '<div class="ci-info">' +
+        '<div class="ci-name">' + esc(c.p.nombre) + '</div>' +
+        '<div class="ci-price">₲ ' + sub.toLocaleString('es-PY') + '</div>' +
+      '</div>' +
+      '<div class="ci-ctrl">' +
+        '<button class="qb" onclick="updateQty(' + i + ',-1)">−</button>' +
+        '<span class="cqty">' + c.qty + '</span>' +
+        '<button class="qb" onclick="updateQty(' + i + ',1)">+</button>' +
+        '<button class="bri" onclick="removeItem(' + i + ')">✕</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function toggleCart() {
+  const d=g('drawer'), o=g('cover'), op=d.classList.contains('on');
+  d.classList.toggle('on',!op); o.classList.toggle('on',!op);
+}
+
+// ══════════════════════════════════════════
+// WHATSAPP
+// ══════════════════════════════════════════
+function cotizarWA() {
+  if (!S.cart.length) { toast('El carrito está vacío','er'); return; }
+  if (!S.cfg.wa || S.cfg.wa.length < 6) { toast('Sin número de WA configurado','er'); return; }
+  const fecha = new Date().toLocaleDateString('es-PY');
+  const total = S.cart.reduce((s,c) => s+(parseInt(c.p.precioTecnico)||0)*c.qty, 0);
+  let msg = (S.cfg.msg||'Hola! Quisiera cotizar:') + '\n\n';
+  msg += '📦 *Pedido ' + fecha + '*\n';
+  msg += 'Técnico: ' + S.user.nombre + '\n\n';
+  S.cart.forEach((c, i) => {
+    const pr = parseInt(c.p.precioTecnico)||0;
+    const tl = TL[c.p.tipoRepuesto] ? ' [' + TL[c.p.tipoRepuesto] + ']' : '';
+    msg += (i+1) + '. *' + c.p.nombre + '*' + tl + '\n';
+    msg += '   ' + c.qty + 'x ₲' + pr.toLocaleString('es-PY') + ' = ₲' + (pr*c.qty).toLocaleString('es-PY') + '\n';
+  });
+  msg += '\n*TOTAL: ₲ ' + total.toLocaleString('es-PY') + '*';
+  window.open('https://wa.me/' + S.cfg.wa + '?text=' + encodeURIComponent(msg), '_blank');
+}
+
+// ══════════════════════════════════════════
+// BOOT
+// ══════════════════════════════════════════
+g('lbtn').addEventListener('click', doLogin);
+g('lp').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+g('lu').addEventListener('keydown', e => { if (e.key==='Enter') g('lp').focus(); });
+
+// Garantizar usuario universal
+db.ref('users/tecnico').once('value').then(snap => {
+  if (!snap.val()) db.ref('users/tecnico').set({password:'1234',role:'tecnico',nombre:'Técnico'});
+});
+
+boot();
+
+// ══════════════════════════════════════════
+// PWA — Service Worker mismo archivo (self-referencing)
+// ══════════════════════════════════════════
+(function(){
+
+  // ── Manifest ──────────────────────────
+  const manifest = {
+    name: 'Reparo Parts',
+    short_name: 'Reparo Parts',
+    description: 'Catálogo técnico de repuestos',
+    start_url: './',
+    display: 'standalone',
+    orientation: 'portrait',
+    background_color: '#080f1e',
+    theme_color: '#080f1e',
+    icons: [
+      {
+        src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAAAACXBIWXMAAAsTAAALEwEAmpwYAAAF8WlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4gPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iQWRvYmUgWE1QIENvcmUgOS4xLWMwMDEgNzkuYTg3NjJiOSwgMjAyMy8wNi8yNS0yMzoxNjoDDDAlMyUzRSUzQyUyRng6eG1wbWV0YSUzRSUwQSUzQyUzRnhwYWNrZXQgZW5kPSJyIiUzRg==',
+        sizes: '192x192',
+        type: 'image/png'
+      }
+    ]
+  };
+
+  // Usar ícono SVG embebido como data URL (más compatible)
+  const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+    <rect width="512" height="512" rx="100" fill="#080f1e"/>
+    <rect width="512" height="512" rx="100" fill="url(#g)"/>
+    <defs>
+      <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#2563eb"/>
+        <stop offset="100%" stop-color="#0ea5e9"/>
+      </linearGradient>
+    </defs>
+    <text y="390" x="60" font-size="380" font-family="sans-serif">🔧</text>
+  </svg>`;
+  const iconUrl = 'data:image/svg+xml,' + encodeURIComponent(iconSvg);
+  manifest.icons = [{src: iconUrl, sizes:'512x512', type:'image/svg+xml', purpose:'any maskable'}];
+
+  const manifestBlob = new Blob([JSON.stringify(manifest)], {type:'application/manifest+json'});
+  const manifestUrl  = URL.createObjectURL(manifestBlob);
+  const link = document.createElement('link');
+  link.rel = 'manifest'; link.href = manifestUrl;
+  document.head.appendChild(link);
+
+  // ── Service Worker — mismo archivo como SW ──────────────────
+  // Técnica: el HTML se registra a sí mismo como SW
+  // El SW detecta que está corriendo como worker y ejecuta lógica de caché
+  if ('serviceWorker' in navigator) {
+    const swCode = `
+const CACHE = 'reparo-parts-v2';
+
+self.addEventListener('install', e => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    ).then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', e => {
+  const url = e.request.url;
+  if (e.request.method !== 'GET') return;
+  if (url.includes('firebaseio.com') || url.includes('googleapis.com/identitytoolkit')) return;
+  if (url.includes('fonts.googleapis.com') || url.includes('fonts.gstatic.com')) {
+    e.respondWith(
+      caches.open(CACHE).then(c =>
+        c.match(e.request).then(r => r || fetch(e.request).then(res => {
+          c.put(e.request, res.clone()); return res;
+        }))
+      )
+    );
+    return;
+  }
+  // Para el propio HTML — cache first, fallback network
+  e.respondWith(
+    caches.open(CACHE).then(c =>
+      c.match(e.request).then(r => {
+        const fresh = fetch(e.request).then(res => {
+          if (res && res.ok) c.put(e.request, res.clone());
+          return res;
+        }).catch(() => r);
+        return r || fresh;
+      })
+    )
+  );
+});
+`;
+    // Registrar como blob — funciona en local
+    // Para GitHub Pages, el SW debe estar en un archivo separado (sw.js)
+    // Detectamos si estamos en un origen real o local
+    const isLocalFile = location.protocol === 'file:';
+    const isGitHubPages = location.hostname.includes('github.io');
+    const isNetlify = location.hostname.includes('netlify.app');
+
+    if (isLocalFile) {
+      // Archivo local: blob SW (limitado pero funcional para desarrollo)
+      const swBlob = new Blob([swCode], {type:'text/javascript'});
+      navigator.serviceWorker.register(URL.createObjectURL(swBlob))
+        .catch(() => {});
+    } else {
+      // Servidor real: intentar cargar sw.js externo primero
+      // Si no existe, crear uno inline via fetch trick
+      navigator.serviceWorker.register('./sw.js')
+        .catch(() => {
+          // sw.js no existe — usar blob (puede fallar en algunos browsers)
+          const swBlob = new Blob([swCode], {type:'text/javascript'});
+          navigator.serviceWorker.register(URL.createObjectURL(swBlob))
+            .catch(() => {});
+        });
+    }
+
+    // Escuchar instalación
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (!localStorage.getItem('pwa_installed')) {
+        setTimeout(() => showPWABanner(), 4000);
+      }
+    });
+
+    window.addEventListener('appinstalled', () => {
+      localStorage.setItem('pwa_installed','1');
+      toast('✅ ¡Reparo Parts instalado!', 'ok');
+      hidePWABanner();
+    });
+
+    // iOS Safari
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.navigator.standalone;
+    if (isIOS && !localStorage.getItem('pwa_installed')) {
+      setTimeout(() => {
+        const banner = g('pwabanner');
+        if (banner) {
+          banner.querySelector('.pwa-sub').textContent = 'En Safari: tocá ⬆️ Compartir → "Añadir a pantalla de inicio"';
+          showPWABanner();
+        }
+      }, 4000);
+    }
+
+    // Botón instalar
+    const installBtn = document.getElementById('pwabtn');
+    if (installBtn) {
+      installBtn.addEventListener('click', async () => {
+        hidePWABanner();
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          if (outcome === 'accepted') toast('✅ ¡App instalada!', 'ok');
+          deferredPrompt = null;
+        } else {
+          toast('Menú del navegador → "Instalar app" o "Añadir a inicio"', 'ok');
+        }
+      });
+    }
+  }
+
+  function showPWABanner() {
+    const b = g('pwabanner');
+    if (b && !localStorage.getItem('pwa_dismissed')) b.classList.add('on');
+  }
+  function hidePWABanner() {
+    const b = g('pwabanner');
+    if (b) b.classList.remove('on');
+  }
+  window.dismissPWA = function() {
+    hidePWABanner();
+    localStorage.setItem('pwa_dismissed','1');
+  };
+})();
+</script>
+</body>
+</html>
